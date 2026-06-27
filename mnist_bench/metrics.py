@@ -5,12 +5,42 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 
+import numpy as np
 import torch
 from torch import Tensor, nn
 from torchvision.utils import save_image
 
 from mnist_bench.constants import IMAGE_SIZE, MNIST_STATS_NAME, NUM_CLASSES
 from mnist_bench.data import flat_to_images
+
+
+def _fid_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+def _cleanfid_kwargs() -> dict:
+    # num_workers=0 avoids macOS spawn pickle errors in clean-fid's DataLoader.
+    return {"device": _fid_device(), "num_workers": 0}
+
+
+def _frechet_distance(mu1: np.ndarray, sigma1: np.ndarray, mu2: np.ndarray, sigma2: np.ndarray) -> float:
+    """Fréchet distance; scipy>=1.14 removed sqrtm(..., disp=False)."""
+    from scipy import linalg
+
+    mu1 = np.atleast_1d(mu1)
+    mu2 = np.atleast_1d(mu2)
+    sigma1 = np.atleast_2d(sigma1)
+    sigma2 = np.atleast_2d(sigma2)
+    diff = mu1 - mu2
+    covmean = linalg.sqrtm(sigma1.dot(sigma2))
+    if not np.isfinite(covmean).all():
+        offset = np.eye(sigma1.shape[0]) * 1e-6
+        covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
+    if np.iscomplexobj(covmean):
+        covmean = covmean.real
+    return float(diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * np.trace(covmean))
 
 
 def _class_balanced_ids(num_samples: int, device: torch.device) -> Tensor:
@@ -75,21 +105,33 @@ def ensure_mnist_reference_stats(
             str(real_image_dir),
             num=num_real_samples,
             mode="clean",
+            **_cleanfid_kwargs(),
         )
 
 
 def score_directory(gen_dir: str | Path, *, real_image_dir: str | Path) -> float:
-    from cleanfid import fid as cleanfid
+    from cleanfid.features import build_feature_extractor, get_reference_statistics
+    from cleanfid.fid import get_folder_features
 
     ensure_mnist_reference_stats(real_image_dir)
-    return float(
-        cleanfid.compute_fid(
-            str(gen_dir),
-            dataset_name=MNIST_STATS_NAME,
-            dataset_split="custom",
-            mode="clean",
-        )
+    fid_kwargs = _cleanfid_kwargs()
+    ref_mu, ref_sigma = get_reference_statistics(
+        MNIST_STATS_NAME,
+        "na",
+        mode="clean",
+        split="custom",
     )
+    feat_model = build_feature_extractor("clean", fid_kwargs["device"])
+    np_feats = get_folder_features(
+        str(gen_dir),
+        feat_model,
+        mode="clean",
+        description=f"FID {Path(gen_dir).name} : ",
+        **fid_kwargs,
+    )
+    mu = np.mean(np_feats, axis=0)
+    sigma = np.cov(np_feats, rowvar=False)
+    return _frechet_distance(mu, sigma, ref_mu, ref_sigma)
 
 
 def compute_kuramoto_fid(

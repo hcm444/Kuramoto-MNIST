@@ -1,107 +1,140 @@
 # Kuramoto-MNIST
 
-Benchmark **Kuramoto dynamics** (via [Un-0](https://github.com/hcm444/Un-0)) against a **DCGAN baseline** on MNIST at 32×32 RGB (padded from 28×28 grayscale).
+Train [Un-0](https://github.com/hcm444/Un-0) Kuramoto dynamics on MNIST and **generate ten grayscale digits** — one per class `0`–`9`.
 
-## Inspiration
-
-This project builds on [Un-0](https://github.com/unconv-ai/Un-0) by [Unconventional AI](https://unconv.ai) — a Kuramoto-based image generator with no diffusion schedule and no adversarial training. The MNIST benchmark uses the [hcm444/Un-0](https://github.com/hcm444/Un-0) fork for training utilities, the drift-loss recipe, and Apple Silicon inference helpers.
-
-**References:**
-
-- [unconv-ai/Un-0](https://github.com/unconv-ai/Un-0) — original research implementation
-- [hcm444/Un-0](https://github.com/hcm444/Un-0) — MPS inference optimizations and photomosaic tooling used here
-- [Introducing Un-0 (blog)](https://unconv.ai/blog/introducing-un-0-generating-images-with-coupled-oscillators/)
-
-## What it compares
-
-| Axis | Kuramoto (Un-0) | DCGAN |
-|------|-----------------|-------|
-| Training | Drift loss + DINO features | Adversarial (BCE) |
-| Generation | ODE integration of coupled oscillators | Single forward pass |
-| Classes | 10 digits | 10 digits |
-| Resolution | 32×32 RGB | 32×32 RGB |
-
-## Setup
-
-Requires Python ≥ 3.11. Install [Un-0](https://github.com/hcm444/Un-0) as a dependency (editable path or from GitHub).
+## Quick start
 
 ```bash
-git clone https://github.com/hcm444/Kuramoto-MNIST.git
-cd Kuramoto-MNIST
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[eval]"
-pip install -e "git+https://github.com/hcm444/Un-0.git#egg=un0"
+pip install -e .
 ```
 
-For local development with Un-0 checked out alongside this repo, edit `pyproject.toml` or run `pip install -e ../Un-0`.
-
-## Quick smoke test (~2 min on MPS)
+Train and export all ten digits:
 
 ```bash
-python scripts/dump_mnist_reals.py --max-images 500
-python train_kuramoto.py --max-steps 10 --batch-size 64 --save-every 1 --sample-every 1
-python train_dcgan.py --max-steps 20 --batch-size 64 --save-every 1 --sample-every 1
+python make_digits.py --device mps
 ```
 
-## Full workflow
+Output:
 
-### 1. Dump real MNIST images (FID reference)
+```
+digits/
+  0.png … 9.png    # one digit per class
+  grid.png         # all ten in a row
+  manifest.json
+```
+
+On Apple Silicon, training scripts set `PYTORCH_ENABLE_MPS_FALLBACK=1` automatically.
+
+## Training on Mac (Apple Silicon)
+
+### Recommended: full dataset
+
+Best quality on a local Mac — all **60,000** training images, 40 epochs (~2–4 hours):
 
 ```bash
-python scripts/dump_mnist_reals.py
+source .venv/bin/activate
+unset PYTORCH_MPS_HIGH_WATERMARK_RATIO PYTORCH_MPS_LOW_WATERMARK_RATIO
+
+# Optional smoke test (~2 min) — confirms MPS works before a long run
+python train_kuramoto.py --device mps --epochs 1 --max-steps 50 --batch-size 64 \
+  --dino-weight 0.2 --pixel-weight 0.06 --n-oscillators 512 \
+  --feature-batch-size 32 --num-workers 0 --precision bf16
+
+# Train + 10×10 progress grid
+rm -rf checkpoints/kuramoto/snapshots digits/progress_rows digits/progress_10x10.png
+python make_progress_grid.py --device mps --epochs 40 --candidates 16
+
+# Or train + export final ten digits only
+python make_digits.py --device mps --epochs 40 --candidates 16
 ```
 
-Writes 60k PNGs to `data/mnist_reals/`.
+Check training progress in `checkpoints/kuramoto/samples/epoch_XXXX.png`. Top rows of the progress grid start noisy; bottom rows should show recognizable digit strokes.
 
-### 2. Train models
+If you hit OOM, retry with `--batch-size 32`. Close other heavy apps while training.
+
+### Faster presets (subset training)
+
+| Flag | Data | Epochs | Time | Quality |
+|------|------|--------|------|---------|
+| *(none)* | 60k | 40 | ~2–4 hr | Best on Mac |
+| `--fast` | 6k | 20 | ~45–90 min | Good |
+| `--lite` | 6k | 12 | ~20 min | Preview only (blobs, not digits) |
 
 ```bash
-# Kuramoto (default n=1024 oscillators, 400 epochs)
-python train_kuramoto.py --checkpoint-dir checkpoints/kuramoto
-
-# DCGAN baseline (200 epochs)
-python train_dcgan.py --checkpoint-dir checkpoints/dcgan
+python make_progress_grid.py --fast --device mps
+python make_progress_grid.py --lite --device mps   # smoke test only
 ```
 
-Training is fastest on **CUDA**. MPS works for inference benchmarking after checkpoints exist.
-
-### 3. Evaluate
+### Regenerate without retraining
 
 ```bash
-python eval/fid.py --model kuramoto --checkpoint checkpoints/kuramoto/final.pt
-python eval/fid.py --model dcgan --checkpoint checkpoints/dcgan/final.pt
-python eval/benchmark.py --model kuramoto --checkpoint checkpoints/kuramoto/final.pt --device mps
-python eval/benchmark.py --model dcgan --checkpoint checkpoints/dcgan/final.pt --device mps
+python make_progress_grid.py --skip-train --device mps --candidates 16
+python make_digits.py --skip-train --device mps --candidates 16
 ```
 
-### 4. Side-by-side comparison
+## Options
 
 ```bash
-python eval/compare.py \
-  --kuramoto checkpoints/kuramoto/final.pt \
-  --dcgan checkpoints/dcgan/final.pt \
-  --device mps
+# Train longer for sharper digits
+python make_digits.py --device mps --epochs 60
+
+# Regenerate from an existing checkpoint
+python make_digits.py --skip-train --checkpoint checkpoints/kuramoto/final.pt
+
+# Try more samples per digit and keep the best
+python make_digits.py --skip-train --candidates 32
 ```
 
-Writes `results/comparison.json` and prints a summary table.
+## Training progress grid (10×10)
 
-## Project layout
+Show improvement over training: **10 rows** (snapshots) × **10 columns** (digits 0–9).
 
-```
-mnist_bench/          # data loader, DCGAN, FID helpers
-train_kuramoto.py     # Un-0 drift-loss training on MNIST
-train_dcgan.py        # GAN baseline
-scripts/              # dump real images for FID
-eval/                 # fid, benchmark, compare
-checkpoints/          # trained weights (gitignored)
-results/              # metrics JSON (gitignored)
+```bash
+python make_progress_grid.py --device mps
 ```
 
-## Notes
+Writes `digits/progress_10x10.png` (top row = early training, bottom = latest). Also saves each row as `digits/progress_rows/epoch_XXXX.png`.
 
-- MNIST is padded 28→32 and repeated to 3 channels so the CIFAR-10 Un-0 architecture applies without modification.
-- FID uses [clean-FID](https://github.com/GaParmar/clean-fid) with custom statistics built from `data/mnist_reals/`.
-- For fair comparison, evaluate both models at the same `--num-samples` and resolution.
+```bash
+python make_progress_grid.py --epochs 40 --snapshots 10 --skip-train --device mps
+```
+
+## Cloud training (GPU)
+
+Mac training is slow. Use a cloud GPU for sharper digits in ~1 hour — see **[cloud/README.md](cloud/README.md)**.
+
+DigitalOcean GPUs are often sold out. **Google Colab (free T4)** or **RunPod / Vast.ai** work well.
+
+```bash
+# Any GPU server — sync, train, fetch
+rsync -avz --exclude .venv --exclude checkpoints ./ root@GPU_HOST:~/un0-mnist-bench/
+ssh root@GPU_HOST 'cd ~/un0-mnist-bench && ./cloud/bootstrap.sh && ./cloud/train_progress.sh'
+./cloud/fetch_results.sh root@GPU_HOST
+```
+
+## How it works
+
+1. **Train** — drift loss + DINO features, with MNIST-tuned settings:
+   - higher pixel loss, lower DINO weight
+   - grayscale consistency penalty (RGB channels should match)
+   - MSE warmup loss while the per-class queue fills
+   - `bf16` + batch 64 on MPS
+
+2. **Generate** — for each digit `0`–`9`, sample several candidates and keep the best by MNIST-like contrast, ink coverage, and smooth grayscale.
+
+MNIST is padded 28→32 and repeated to 3 channels so the CIFAR-10 Un-0 architecture applies unchanged. Exports are converted to true grayscale PNGs.
+
+## Legacy benchmark tools
+
+The original DCGAN comparison, FID eval, and bulk synthetic export scripts are still available:
+
+- `train_dcgan.py`, `eval/`, `scripts/generate_synthetic_digits.py`
+
+## References
+
+- [unconv-ai/Un-0](https://github.com/unconv-ai/Un-0)
+- [hcm444/Un-0](https://github.com/hcm444/Un-0) — fork used as a dependency
 
 ## License
 

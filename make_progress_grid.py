@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Train Kuramoto with snapshots and build a 10×10 training-progress grid."""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+from pathlib import Path
+
+from mnist_bench.digits import (
+    MAC_FAST_TRAIN_KWARGS,
+    MAC_LITE_TRAIN_KWARGS,
+    build_progress_grid,
+    kuramoto_train_command,
+    list_snapshot_checkpoints,
+    mac_training_env,
+    train_kwargs_for_device,
+)
+from un0.common import resolve_device
+
+DEFAULT_SNAPSHOT_DIR = Path("checkpoints/kuramoto/snapshots")
+DEFAULT_OUTPUT = Path("digits/progress_10x10.png")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    defaults = train_kwargs_for_device("auto")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Train Kuramoto, save 10 training snapshots, and compose a 10×10 grid "
+            "(rows = training time, columns = digits 0-9)."
+        ),
+    )
+    parser.add_argument(
+        "--skip-train",
+        action="store_true",
+        help="Build the grid from existing snapshots only.",
+    )
+    parser.add_argument(
+        "--lite",
+        action="store_true",
+        help="Mac preview only (~20 min). Blobs, not digits — use --fast for quality.",
+    )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Mac-optimized: 6k samples, 20 epochs (~5–15 min, uses more RAM).",
+    )
+    parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument(
+        "--snapshots",
+        type=int,
+        default=10,
+        help="Number of training rows in the progress grid.",
+    )
+    parser.add_argument("--batch-size", type=int, default=int(defaults["batch_size"]))
+    parser.add_argument("--snapshot-dir", type=Path, default=DEFAULT_SNAPSHOT_DIR)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--rows-dir", type=Path, default=Path("digits/progress_rows"))
+    parser.add_argument("--device", default="auto")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--candidates", type=int, default=16)
+    parser.add_argument(
+        "--cell-scale",
+        type=int,
+        default=4,
+        help="Upscale each digit cell for readability (4 → 128×128 cells).",
+    )
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    device = resolve_device(str(args.device))
+
+    if args.lite:
+        kwargs = dict(MAC_LITE_TRAIN_KWARGS)
+        epochs = int(args.epochs) if args.epochs is not None else int(kwargs["epochs"])
+        snapshots = int(args.snapshots)
+        batch_size = int(kwargs["batch_size"])
+        mode = "LITE"
+        lite = True
+    elif args.fast:
+        kwargs = dict(MAC_FAST_TRAIN_KWARGS)
+        epochs = int(args.epochs) if args.epochs is not None else int(kwargs["epochs"])
+        snapshots = int(args.snapshots)
+        batch_size = int(kwargs["batch_size"])
+        mode = "FAST"
+        lite = False
+    else:
+        kwargs = train_kwargs_for_device(str(device))
+        epochs = int(args.epochs) if args.epochs is not None else int(kwargs["epochs"])
+        snapshots = int(args.snapshots)
+        batch_size = int(args.batch_size)
+        mode = "standard"
+        lite = False
+
+    kwargs["epochs"] = epochs
+    kwargs["batch_size"] = batch_size
+    snapshot_every = max(1, epochs // snapshots)
+    checkpoint_dir = args.snapshot_dir.parent
+
+    if not args.skip_train:
+        steps = (int(kwargs.get("max_samples", 0)) or 60000) // batch_size
+        print(
+            f"[{mode}] Training on {device}: {epochs} epochs, ~{steps} steps/epoch, "
+            f"snapshot every {snapshot_every}…",
+        )
+        if args.lite:
+            print("  (preview quality — use --fast for digit-like results)")
+        elif args.fast:
+            print("  (6000 samples, 256 oscillators, snapshot every", snapshot_every, "epochs)")
+        cmd = kuramoto_train_command(
+            checkpoint_dir=checkpoint_dir,
+            snapshot_every=snapshot_every,
+            train_kwargs=kwargs,
+        )
+        subprocess.run(cmd, check=True, env=mac_training_env(lite=lite))
+
+    checkpoints = list_snapshot_checkpoints(args.snapshot_dir, limit=snapshots)
+    print(f"Building {len(checkpoints)}×10 grid from snapshots…")
+    manifest = build_progress_grid(
+        checkpoints=checkpoints,
+        output_image=args.output,
+        device=str(args.device),
+        seed=int(args.seed),
+        candidates_per_digit=int(args.candidates),
+        cell_scale=int(args.cell_scale),
+        rows_dir=args.rows_dir,
+    )
+    print(f"Wrote {args.output}")
+    print(f"  Row grids: {args.rows_dir}/epoch_XXXX.png")
+    print(f"  Manifest:  {args.output.with_suffix('.json')}")
+    for row in manifest.rows:
+        print(f"  epoch {row['epoch']:>4}: {Path(str(row['checkpoint'])).name}")
+
+
+if __name__ == "__main__":
+    main()

@@ -6,7 +6,7 @@ from typing import Any
 
 import torch
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
 from mnist_bench.constants import CHANNELS, IMAGE_SIZE, NUM_CLASSES
@@ -57,6 +57,7 @@ def build_mnist_dataloader(
     include_sample_id: bool = False,
     shuffle: bool = True,
     drop_last: bool = True,
+    max_samples: int = 0,
 ) -> DataLoader[dict[str, Tensor]]:
     transform = build_mnist_transform()
     dataset: Any
@@ -75,6 +76,9 @@ def build_mnist_dataloader(
         dataset = datasets.MNIST(root=root, train=train, download=True, transform=transform)
         collate_fn = collate_mnist_batch
 
+    if max_samples > 0 and max_samples < len(dataset):
+        dataset = Subset(dataset, range(int(max_samples)))
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -92,10 +96,18 @@ def flat_to_images(flat: Tensor) -> Tensor:
     return ((images + 1.0) * 0.5).clamp(0.0, 1.0)
 
 
+def images_to_grayscale(images: Tensor) -> Tensor:
+    """Convert (N, 3, H, W) in [0, 1] to (N, 1, H, W) for MNIST-style export."""
+    if images.shape[1] == 1:
+        return images
+    return images.mean(dim=1, keepdim=True)
+
+
 __all__ = [
     "NUM_CLASSES",
     "build_mnist_dataloader",
     "build_mnist_transform",
     "collate_mnist_batch",
     "flat_to_images",
+    "images_to_grayscale",
 ]
