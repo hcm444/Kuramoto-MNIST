@@ -1,0 +1,19 @@
+{
+  "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/final.pt",
+  "output_dir": "/Users/henrymeier/Documents/un0-mnist-bench/digits",
+  "seed": 42,
+  "device": "mps",
+  "candidates_per_digit": 16,
+  "digits": {
+    "0": "0.png",
+    "1": "1.png",
+    "2": "2.png",
+    "3": "3.png",
+    "4": "4.png",
+    "5": "5.png",
+    "6": "6.png",
+    "7": "7.png",
+    "8": "8.png",
+    "9": "9.png"
+  }
+}

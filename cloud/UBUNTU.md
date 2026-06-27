@@ -2,7 +2,9 @@
 
 Train on **Ubuntu 22.04+** with an **NVIDIA GPU**. This is the recommended path for a **quality 10×10 progress grid** (full 60,000-image MNIST dataset, 100 epochs).
 
-**Requirements:** NVIDIA GPU with ≥8 GB VRAM (16 GB recommended), CUDA driver installed, outbound HTTPS.
+**Requirements:** Ubuntu 22.04+, **Python 3.11–3.14**, NVIDIA GPU with ≥8 GB VRAM (16 GB recommended), CUDA driver installed, outbound HTTPS.
+
+`bootstrap.sh` auto-detects `python3.14`, then 3.13, 3.12, 3.11. Override with `PYTHON=python3.14 ./cloud/bootstrap.sh`.
 
 ---
 
@@ -161,6 +163,8 @@ Any Ubuntu + NVIDIA GPU works: [RunPod](https://www.runpod.io/), [Vast.ai](https
 
 | Issue | Fix |
 |-------|-----|
+| `No module named venv` on 3.14 | `sudo apt install python3.14-venv` or use deadsnakes PPA |
+| `Requires-Python >=3.11,<3.14` on pip install | Pull latest repo (3.14 is supported) |
 | `cuda available: False` | Wrong instance — need NVIDIA GPU + driver |
 | OOM at batch 512 | `BATCH_SIZE=256 ./cloud/train_progress.sh` |
 | `python: command not found` | Run `source .venv/bin/activate` first |

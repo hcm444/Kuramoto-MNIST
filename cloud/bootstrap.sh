@@ -6,29 +6,24 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="${REPO_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 pick_python() {
-  if command -v python3.12 >/dev/null 2>&1; then
-    echo python3.12
-  elif command -v python3.11 >/dev/null 2>&1; then
-    echo python3.11
-  elif command -v python3 >/dev/null 2>&1; then
-    echo python3
-  else
-    echo "No python3 found." >&2
-    exit 1
-  fi
+  for candidate in python3.14 python3.13 python3.12 python3.11 python3; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  echo "No python3 found (need 3.11+)." >&2
+  exit 1
 }
 
 echo "==> System packages"
 if command -v apt-get >/dev/null 2>&1; then
   sudo apt-get update
   sudo apt-get install -y git python3 python3-venv python3-pip curl
-  if ! pick_python >/dev/null 2>&1 || [[ "$(pick_python)" == "python3" ]]; then
-    sudo apt-get install -y python3.12 python3.12-venv 2>/dev/null || true
-  fi
 fi
 
-PYTHON="$(pick_python)"
-echo "Using $PYTHON"
+PYTHON="${PYTHON:-$(pick_python)}"
+echo "Using $PYTHON ($("$PYTHON" --version))"
 
 if [[ ! -f "$REPO_DIR/pyproject.toml" ]]; then
   echo "==> Clone repo (set REPO_URL if you use a fork)"
@@ -61,6 +56,7 @@ from un0.common import resolve_device
 d = resolve_device("cuda")
 print("device:", d)
 print("torch:", torch.__version__)
+print("python:", __import__("sys").version.split()[0])
 print("cuda available:", torch.cuda.is_available())
 if torch.cuda.is_available():
     print("gpu:", torch.cuda.get_device_name(0))

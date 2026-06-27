@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "MNIST benchmark: Un-0 Kuramoto dynamics vs DCGAN"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.15"
 dependencies = [
     "un0 @ git+https://github.com/hcm444/Un-0.git",
     "numpy>=1.24.0",

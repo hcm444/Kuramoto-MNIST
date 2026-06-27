@@ -1,0 +1,49 @@
+{
+  "output_image": "/Users/henrymeier/Documents/un0-mnist-bench/digits/progress_10x10.png",
+  "rows": [
+    {
+      "epoch": 1,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0001.pt"
+    },
+    {
+      "epoch": 3,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0003.pt"
+    },
+    {
+      "epoch": 4,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0004.pt"
+    },
+    {
+      "epoch": 6,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0006.pt"
+    },
+    {
+      "epoch": 7,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0007.pt"
+    },
+    {
+      "epoch": 9,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0009.pt"
+    },
+    {
+      "epoch": 10,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0010.pt"
+    },
+    {
+      "epoch": 12,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0012.pt"
+    },
+    {
+      "epoch": 13,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0013.pt"
+    },
+    {
+      "epoch": 15,
+      "checkpoint": "/Users/henrymeier/Documents/un0-mnist-bench/checkpoints/kuramoto/snapshots/epoch_0015.pt"
+    }
+  ],
+  "seed": 42,
+  "device": "mps",
+  "candidates_per_digit": 4,
+  "cell_scale": 4
+}
