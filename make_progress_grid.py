@@ -13,8 +13,8 @@ from mnist_bench.digits import (
     build_progress_grid,
     kuramoto_train_command,
     list_snapshot_checkpoints,
-    mac_training_env,
     train_kwargs_for_device,
+    training_subprocess_env,
 )
 from un0.common import resolve_device
 
@@ -78,21 +78,18 @@ def main() -> None:
         snapshots = int(args.snapshots)
         batch_size = int(kwargs["batch_size"])
         mode = "LITE"
-        lite = True
     elif args.fast:
         kwargs = dict(MAC_FAST_TRAIN_KWARGS)
         epochs = int(args.epochs) if args.epochs is not None else int(kwargs["epochs"])
         snapshots = int(args.snapshots)
         batch_size = int(kwargs["batch_size"])
         mode = "FAST"
-        lite = False
     else:
         kwargs = train_kwargs_for_device(str(device))
         epochs = int(args.epochs) if args.epochs is not None else int(kwargs["epochs"])
         snapshots = int(args.snapshots)
         batch_size = int(args.batch_size)
         mode = "standard"
-        lite = False
 
     kwargs["epochs"] = epochs
     kwargs["batch_size"] = batch_size
@@ -109,12 +106,14 @@ def main() -> None:
             print("  (preview quality — use --fast for digit-like results)")
         elif args.fast:
             print("  (6000 samples, 256 oscillators, snapshot every", snapshot_every, "epochs)")
+        elif device.type == "cuda":
+            print("  (full 60k MNIST, CUDA quality preset — 1024 oscillators, DINO 0.5)")
         cmd = kuramoto_train_command(
             checkpoint_dir=checkpoint_dir,
             snapshot_every=snapshot_every,
             train_kwargs=kwargs,
         )
-        subprocess.run(cmd, check=True, env=mac_training_env(lite=lite))
+        subprocess.run(cmd, check=True, env=training_subprocess_env())
 
     checkpoints = list_snapshot_checkpoints(args.snapshot_dir, limit=snapshots)
     print(f"Building {len(checkpoints)}×10 grid from snapshots…")

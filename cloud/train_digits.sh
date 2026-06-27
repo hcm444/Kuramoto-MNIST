@@ -1,33 +1,31 @@
 #!/usr/bin/env bash
-# Train Kuramoto on CUDA and export digits/0.png … digits/9.png
+# Train on full MNIST (60k) and export digits/0.png … digits/9.png on CUDA.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+# shellcheck disable=SC1091
 source .venv/bin/activate
 
 EPOCHS="${EPOCHS:-100}"
 BATCH_SIZE="${BATCH_SIZE:-512}"
+CANDIDATES="${CANDIDATES:-32}"
 CHECKPOINT="${CHECKPOINT:-checkpoints/kuramoto/final.pt}"
 
-python train_kuramoto.py \
-  --checkpoint-dir checkpoints/kuramoto \
-  --epochs "$EPOCHS" \
-  --batch-size "$BATCH_SIZE" \
-  --pixel-weight 0.02 \
-  --dino-weight 0.5 \
-  --channel-weight 0.05 \
-  --num-pos 64 \
-  --precision bf16 \
-  --sample-every 10 \
-  --save-every 10
+echo "==> Train ten MNIST digits (full dataset, CUDA quality preset)"
+echo "    Epochs: $EPOCHS  Batch: $BATCH_SIZE  Candidates: $CANDIDATES"
+echo ""
 
 python make_digits.py \
-  --skip-train \
-  --checkpoint "$CHECKPOINT" \
-  --output digits \
   --device cuda \
-  --candidates 16
+  --epochs "$EPOCHS" \
+  --batch-size "$BATCH_SIZE" \
+  --candidates "$CANDIDATES"
 
 echo ""
-echo "Training complete. Download to your Mac:"
-echo "  ./cloud/fetch_results.sh root@YOUR_DROPLET_IP"
+echo "Done."
+echo "  Digits:     digits/0.png … digits/9.png"
+echo "  Grid:       digits/grid.png"
+echo "  Checkpoint: $CHECKPOINT"
+echo ""
+echo "Download to your laptop:"
+echo "  ./cloud/fetch_results.sh user@your-server"

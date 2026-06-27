@@ -10,8 +10,8 @@ from pathlib import Path
 from mnist_bench.digits import (
     export_ten_digits,
     kuramoto_train_command,
-    mac_training_env,
     train_kwargs_for_device,
+    training_subprocess_env,
 )
 from un0.common import resolve_device
 
@@ -57,7 +57,7 @@ def main() -> None:
             checkpoint_dir=args.checkpoint.parent,
             train_kwargs=kwargs,
         )
-        subprocess.run(cmd, check=True, env=mac_training_env())
+        subprocess.run(cmd, check=True, env=training_subprocess_env())
     elif not args.checkpoint.is_file():
         raise SystemExit(f"Missing checkpoint: {args.checkpoint}. Run without --skip-train first.")
 

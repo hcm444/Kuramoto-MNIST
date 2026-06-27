@@ -110,16 +110,24 @@ def train_kwargs_for_device(device: str = "auto") -> dict[str, str | int | float
     return dict(MAC_TRAIN_KWARGS)
 
 
-def mac_training_env(*, lite: bool = False) -> dict[str, str]:
+def training_subprocess_env() -> dict[str, str]:
+    """Environment for subprocess training (MPS tweaks on macOS only)."""
     import os
+    import sys
 
     env = os.environ.copy()
-    env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-    # Strip MPS watermark overrides — invalid values crash with
-    # "RuntimeError: invalid low watermark ratio".
-    for key in ("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "PYTORCH_MPS_LOW_WATERMARK_RATIO"):
-        env.pop(key, None)
+    if sys.platform == "darwin":
+        env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+        # Strip MPS watermark overrides — invalid values crash with
+        # "RuntimeError: invalid low watermark ratio".
+        for key in ("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "PYTORCH_MPS_LOW_WATERMARK_RATIO"):
+            env.pop(key, None)
     return env
+
+
+def mac_training_env(*, lite: bool = False) -> dict[str, str]:
+    """Backward-compatible alias for training_subprocess_env()."""
+    return training_subprocess_env()
 
 
 def kuramoto_train_command(
