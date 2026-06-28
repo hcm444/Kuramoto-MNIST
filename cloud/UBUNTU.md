@@ -191,7 +191,8 @@ Any Ubuntu + NVIDIA GPU works: [RunPod](https://www.runpod.io/), [Vast.ai](https
 | `python: command not found` | Run `source .venv/bin/activate` first |
 | SSH disconnect killed training | Use `tmux` or `screen` |
 | Digits still blurry | `EPOCHS=150 CANDIDATES=32 ./cloud/train_progress.sh` |
-| Blobs / not digit-like | Do **not** use `--lite` or `--fast` on Ubuntu — use `./cloud/train_progress.sh` |
+| Blobs / mode collapse (all columns identical) | Documented on full CUDA preset — see **[FINDINGS.md](../FINDINGS.md)**. Try retuned Kuramoto (`--epochs 400 --dino-weight 0.2 --pixel-weight 0.06 --collapse-weight 0.01`) or train DCGAN: `python train_dcgan.py --device cuda` |
+| Stale `digits/0.png` … `9.png` | Re-export: `python make_digits.py --skip-train --device cuda --candidates 32` |
 
 ---
 

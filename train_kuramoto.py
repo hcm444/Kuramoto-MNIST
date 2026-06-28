@@ -66,6 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--feature-batch-size", type=int, default=64)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints/kuramoto"))
+    parser.add_argument(
+        "--resume",
+        type=Path,
+        default=None,
+        help="Resume training from a checkpoint .pt (model, optimizer, scheduler).",
+    )
     parser.add_argument("--sample-every", type=int, default=50)
     parser.add_argument("--save-every", type=int, default=50)
     parser.add_argument(
@@ -116,6 +122,19 @@ def main() -> None:
         solver=str(args.solver),
     ).to(device)
 
+    start_epoch = 0
+    global_step = 0
+    resume_state = None
+    if args.resume is not None:
+        resume_path = Path(args.resume)
+        if not resume_path.is_file():
+            raise FileNotFoundError(f"Resume checkpoint not found: {resume_path}")
+        resume_state = torch.load(resume_path, map_location=device, weights_only=False)
+        model.load_state_dict(resume_state["model"])
+        start_epoch = int(resume_state.get("epoch", 0)) + 1
+        global_step = int(resume_state.get("global_step", 0))
+        print(f"Resuming from {resume_path} at epoch {start_epoch} (global_step={global_step})")
+
     use_dino = float(args.dino_weight) > 0.0
     dino = None
     if use_dino:
@@ -134,6 +153,11 @@ def main() -> None:
     if args.max_steps > 0:
         total_steps = min(total_steps, int(args.max_steps))
     scheduler = make_scheduler(optimizer, total_steps=total_steps, warmup_fraction=WARMUP_FRACTION)
+    if resume_state is not None:
+        optimizer.load_state_dict(resume_state["optimizer"])
+        sched_state = dict(resume_state["scheduler"])
+        sched_state["last_epoch"] = global_step
+        scheduler.load_state_dict(sched_state)
     scaler = torch.amp.GradScaler("cuda") if args.precision == "fp16" else None
 
     queue = PerClassQueue(
@@ -151,9 +175,8 @@ def main() -> None:
     snapshot_dir = checkpoint_dir / "snapshots"
     eval_class_ids = torch.arange(NUM_CLASSES, device=device).repeat_interleave(10)
 
-    global_step = 0
     stop = False
-    for epoch in range(int(args.epochs)):
+    for epoch in range(start_epoch, int(args.epochs)):
         model.train()
         if dino is not None:
             dino.train()

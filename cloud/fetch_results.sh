@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Pull checkpoints and generated digits from a remote Ubuntu GPU server.
+# Pull checkpoints and generated digits from a remote GPU server (Vast, RunPod, …).
 set -euo pipefail
 
-REMOTE="${1:?usage: ./cloud/fetch_results.sh user@server-ip [remote-repo-dir]}"
-REMOTE_DIR="${2:-un0-mnist-bench}"
+REMOTE="${1:?usage: ./cloud/fetch_results.sh user@host [remote-repo-dir]}"
+REMOTE_DIR="${2:-/workspace/Kuramoto-MNIST}"
+SSH_PORT="${SSH_PORT:-22}"
+RSYNC_SSH="ssh -p $SSH_PORT"
 
 echo "==> Fetching checkpoints/"
-rsync -avz --progress "$REMOTE:$REMOTE_DIR/checkpoints/" ./checkpoints/
+rsync -avz -e "$RSYNC_SSH" --progress "$REMOTE:$REMOTE_DIR/checkpoints/" ./checkpoints/
 
 echo "==> Fetching digits/"
-rsync -avz --progress "$REMOTE:$REMOTE_DIR/digits/" ./digits/
+rsync -avz -e "$RSYNC_SSH" --progress "$REMOTE:$REMOTE_DIR/digits/" ./digits/
 
 echo ""
 echo "Done."

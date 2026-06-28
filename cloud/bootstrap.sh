@@ -60,8 +60,13 @@ fi
 cd "$REPO_DIR"
 
 echo "==> Python venv"
-rm -rf .venv
-"$PYTHON" -m venv .venv
+RECREATE_VENV="${RECREATE_VENV:-1}"
+if [[ "$RECREATE_VENV" == "1" ]] || [[ ! -d .venv ]]; then
+  rm -rf .venv
+  "$PYTHON" -m venv .venv
+else
+  echo "Keeping existing .venv (set RECREATE_VENV=1 to rebuild)"
+fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
 
@@ -97,10 +102,11 @@ PY
 echo ""
 echo "Setup complete."
 echo ""
-echo "Train a quality 10×10 progress grid (full 60k MNIST, ~1–2 hr on T4):"
-echo "  cd $REPO_DIR"
-echo "  tmux new -s train"
+echo "Vast.ai (1200 epochs):  see cloud/vast/README.md"
+echo "  ./cloud/train_long.sh"
+echo ""
+echo "Quick progress grid (~100 epochs on ≥8 GB GPU):"
 echo "  ./cloud/train_progress.sh"
 echo ""
-echo "Or ten final digits only:"
+echo "Ten final digits only:"
 echo "  ./cloud/train_digits.sh"

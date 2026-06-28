@@ -8,3 +8,6 @@ checkpoints/
 results/
 data/
 wandb/
+train_progress.log
+train_progress_*.log
+**/train.log

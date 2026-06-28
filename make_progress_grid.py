@@ -47,6 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument(
+        "--resume",
+        type=Path,
+        default=None,
+        help="Resume training from an existing checkpoint (e.g. checkpoints/kuramoto/final.pt).",
+    )
+    parser.add_argument(
         "--snapshots",
         type=int,
         default=10,
@@ -107,11 +113,19 @@ def main() -> None:
         elif args.fast:
             print("  (6000 samples, 256 oscillators, snapshot every", snapshot_every, "epochs)")
         elif device.type == "cuda":
-            print("  (full 60k MNIST, CUDA quality preset — 1024 oscillators, DINO 0.5)")
+            preset = "6GB" if int(kwargs.get("n_oscillators", 1024)) <= 512 else "cloud"
+            print(
+                f"  (full 60k MNIST, CUDA {preset} preset — "
+                f"dino={kwargs['dino_weight']}, pixel={kwargs['pixel_weight']}, "
+                f"collapse={kwargs.get('collapse_weight', 0.0)})",
+            )
+        if args.resume is not None:
+            print(f"  Resuming from {args.resume}")
         cmd = kuramoto_train_command(
             checkpoint_dir=checkpoint_dir,
             snapshot_every=snapshot_every,
             train_kwargs=kwargs,
+            resume=args.resume,
         )
         subprocess.run(cmd, check=True, env=training_subprocess_env())
 

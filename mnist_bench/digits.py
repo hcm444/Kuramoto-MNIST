@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -16,14 +17,20 @@ from mnist_bench.data import flat_to_images, images_to_grayscale
 from mnist_bench.factory import load_kuramoto
 from un0.common import disable_torchscript_gpu_fuser_on_blackwell, resolve_device, seed_everything
 
-# Apple Silicon (MPS) — faster iteration, MNIST-focused loss mix.
-MAC_TRAIN_KWARGS: dict[str, str | int | float] = {
-    "batch_size": 64,
-    "epochs": 40,
-    "lr": 0.001,
+# MNIST loss mix: trust pixel matching over DINO (simple strokes, not CIFAR semantics).
+_MNIST_LOSS_KWARGS: dict[str, float] = {
     "pixel_weight": 0.06,
     "dino_weight": 0.2,
     "channel_weight": 0.1,
+    "collapse_weight": 0.01,
+}
+
+# Apple Silicon (MPS) — faster iteration, MNIST-focused loss mix.
+MAC_TRAIN_KWARGS: dict[str, str | int | float] = {
+    **_MNIST_LOSS_KWARGS,
+    "batch_size": 64,
+    "epochs": 40,
+    "lr": 0.001,
     "num_pos": 8,
     "precision": "bf16",
     "n_oscillators": 512,
@@ -38,12 +45,13 @@ MAC_TRAIN_KWARGS: dict[str, str | int | float] = {
 
 # Mac progress-grid demo (~5–15 min): subset + light DINO for stable digits.
 MAC_FAST_TRAIN_KWARGS: dict[str, str | int | float] = {
-    "batch_size": 64,
-    "epochs": 20,
-    "lr": 0.0008,
     "pixel_weight": 0.08,
     "dino_weight": 0.15,
     "channel_weight": 0.1,
+    "collapse_weight": 0.01,
+    "batch_size": 64,
+    "epochs": 20,
+    "lr": 0.0008,
     "num_pos": 8,
     "precision": "bf16",
     "n_oscillators": 256,
@@ -80,14 +88,30 @@ MAC_LITE_TRAIN_KWARGS: dict[str, str | int | float] = {
 }
 MNIST_TRAIN_KWARGS = MAC_TRAIN_KWARGS
 
-# CUDA / cloud GPU defaults (DigitalOcean GPU Droplet, etc.).
+# Cloud / Vast.ai (≥8 GB VRAM): Un-0-scale epoch budget, MNIST-tuned losses.
+CLOUD_TRAIN_KWARGS: dict[str, str | int | float] = {
+    **_MNIST_LOSS_KWARGS,
+    "batch_size": 512,
+    "epochs": 1200,
+    "lr": 0.001,
+    "num_pos": 64,
+    "precision": "bf16",
+    "n_oscillators": 1024,
+    "n_conditional_oscillators": 8,
+    "num_steps": 10,
+    "feature_batch_size": 64,
+    "num_workers": 4,
+    "queue_size": 1024,
+    "sample_every": 120,
+    "save_every": 10,
+}
+
+# CUDA on ≥8 GB VRAM — shorter default for quick progress grids.
 CUDA_TRAIN_KWARGS: dict[str, str | int | float] = {
+    **_MNIST_LOSS_KWARGS,
     "batch_size": 512,
     "epochs": 100,
     "lr": 0.001,
-    "pixel_weight": 0.02,
-    "dino_weight": 0.5,
-    "channel_weight": 0.05,
     "num_pos": 64,
     "precision": "bf16",
     "n_oscillators": 1024,
@@ -100,10 +124,42 @@ CUDA_TRAIN_KWARGS: dict[str, str | int | float] = {
     "save_every": 10,
 }
 
+# CUDA on ≤6 GB laptop GPUs — ~9 hr for 60 epochs on RTX A1000; resume-friendly.
+CUDA_6GB_TRAIN_KWARGS: dict[str, str | int | float] = {
+    **_MNIST_LOSS_KWARGS,
+    "batch_size": 128,
+    "epochs": 60,
+    "lr": 0.001,
+    "num_pos": 32,
+    "precision": "bf16",
+    "n_oscillators": 512,
+    "n_conditional_oscillators": 8,
+    "num_steps": 10,
+    "feature_batch_size": 16,
+    "num_workers": 2,
+    "queue_size": 512,
+    "sample_every": 6,
+    "save_every": 6,
+}
+
+
+def _cuda_vram_gb(device: torch.device) -> float | None:
+    if device.type != "cuda":
+        return None
+    return float(torch.cuda.get_device_properties(device).total_memory) / (1024**3)
+
 
 def train_kwargs_for_device(device: str = "auto") -> dict[str, str | int | float]:
+    preset = os.environ.get("KURAMOTO_PRESET", "").strip().lower()
+    if preset == "cloud":
+        return dict(CLOUD_TRAIN_KWARGS)
+    if preset == "6gb":
+        return dict(CUDA_6GB_TRAIN_KWARGS)
     resolved = resolve_device(device)
     if resolved.type == "cuda":
+        vram_gb = _cuda_vram_gb(resolved)
+        if vram_gb is not None and vram_gb < 8.0:
+            return dict(CUDA_6GB_TRAIN_KWARGS)
         return dict(CUDA_TRAIN_KWARGS)
     if resolved.type == "mps":
         return dict(MAC_TRAIN_KWARGS)
@@ -136,6 +192,7 @@ def kuramoto_train_command(
     snapshot_every: int = 0,
     train_kwargs: dict[str, str | int | float] | None = None,
     train_script: Path | None = None,
+    resume: Path | None = None,
 ) -> list[str]:
     """Build argv for train_kuramoto.py from device-tuned kwargs."""
     import sys
@@ -186,6 +243,8 @@ def kuramoto_train_command(
         cmd.extend(["--max-samples", str(int(kw["max_samples"]))])
     if snapshot_every > 0:
         cmd.extend(["--snapshot-every", str(snapshot_every)])
+    if resume is not None:
+        cmd.extend(["--resume", str(resume)])
     return cmd
 
 
