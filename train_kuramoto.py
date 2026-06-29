@@ -13,7 +13,17 @@ from torch.nn import functional as F
 
 from mnist_bench.constants import IMAGE_SIZE, NUM_CLASSES
 from mnist_bench.data import build_mnist_dataloader
-from mnist_bench.digits import anti_collapse_loss, grayscale_consistency_loss
+from mnist_bench.digit_features import DEFAULT_ENCODER_PATH, DigitFeatureExtractor
+from mnist_bench.digits import (
+    DEFAULT_PROGRESS_MANIFEST,
+    DEFAULT_PROGRESS_OUTPUT,
+    DEFAULT_PROGRESS_ROWS_DIR,
+    anti_collapse_loss,
+    grayscale_consistency_loss,
+    init_progress_manifest,
+    save_progress_row,
+    stitch_progress_grid,
+)
 from un0.common import (
     autocast_context,
     disable_torchscript_gpu_fuser_on_blackwell,
@@ -42,7 +52,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--precision", choices=("fp32", "tf32", "bf16", "fp16"), default="bf16")
-    parser.add_argument("--dino-weight", type=float, default=1.0)
+    parser.add_argument(
+        "--feature-backbone",
+        choices=("digit", "dino"),
+        default="digit",
+        help="Drift-loss feature extractor: digit (MNIST CNN) or dino (DINOv2).",
+    )
+    parser.add_argument(
+        "--digit-encoder",
+        type=Path,
+        default=DEFAULT_ENCODER_PATH,
+        help="Path to pretrained MNIST digit encoder (.pt).",
+    )
+    parser.add_argument(
+        "--dino-weight",
+        type=float,
+        default=1.0,
+        help="Weight on feature drift term (digit or DINO views).",
+    )
     parser.add_argument("--pixel-weight", type=float, default=0.004)
     parser.add_argument(
         "--collapse-weight",
@@ -72,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Resume training from a checkpoint .pt (model, optimizer, scheduler).",
     )
-    parser.add_argument("--sample-every", type=int, default=50)
+    parser.add_argument("--sample-every", type=int, default=50, help="Save samples/ grid (0=off).")
     parser.add_argument("--save-every", type=int, default=50)
     parser.add_argument(
         "--snapshot-every",
@@ -80,6 +107,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="Save checkpoints/kuramoto/snapshots/epoch_XXXX.pt every N epochs (0=off).",
     )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=0,
+        help="Save best-of-N progress row + manifest entry every N epochs (0=off).",
+    )
+    parser.add_argument("--progress-candidates", type=int, default=32)
+    parser.add_argument("--progress-rows-dir", type=Path, default=DEFAULT_PROGRESS_ROWS_DIR)
+    parser.add_argument("--progress-manifest", type=Path, default=DEFAULT_PROGRESS_MANIFEST)
+    parser.add_argument("--progress-output", type=Path, default=DEFAULT_PROGRESS_OUTPUT)
     parser.add_argument("--max-steps", type=int, default=0, help="Stop after N optimizer steps (smoke test).")
     parser.add_argument(
         "--max-samples",
@@ -135,12 +172,18 @@ def main() -> None:
         global_step = int(resume_state.get("global_step", 0))
         print(f"Resuming from {resume_path} at epoch {start_epoch} (global_step={global_step})")
 
-    use_dino = float(args.dino_weight) > 0.0
-    dino = None
-    if use_dino:
-        dino = DINOFeatureExtractor().to(device)
-        if device.type != "mps":
-            dino = torch.compile(dino, dynamic=False)
+    use_feature_drift = float(args.dino_weight) > 0.0
+    feature_extractor = None
+    if use_feature_drift:
+        if args.feature_backbone == "digit":
+            feature_extractor = DigitFeatureExtractor(checkpoint=args.digit_encoder).to(device)
+            print(f"Feature backbone: MNIST digit encoder ({args.digit_encoder})")
+        else:
+            feature_extractor = DINOFeatureExtractor().to(device)
+            print("Feature backbone: DINOv2")
+        # Digit CNN is tiny; compile fills disk with inductor caches on quota-limited hosts.
+        if device.type != "mps" and args.feature_backbone != "digit":
+            feature_extractor = torch.compile(feature_extractor, dynamic=False)
 
     optimizer = DecoupledAdamW(
         model.parameters(),
@@ -175,11 +218,19 @@ def main() -> None:
     snapshot_dir = checkpoint_dir / "snapshots"
     eval_class_ids = torch.arange(NUM_CLASSES, device=device).repeat_interleave(10)
 
+    progress_every = int(args.progress_every)
+    if progress_every > 0 and start_epoch == 0:
+        init_progress_manifest(
+            manifest_path=Path(args.progress_manifest),
+            candidates_per_digit=int(args.progress_candidates),
+            seed=int(args.seed),
+        )
+
     stop = False
     for epoch in range(start_epoch, int(args.epochs)):
         model.train()
-        if dino is not None:
-            dino.train()
+        if feature_extractor is not None:
+            feature_extractor.train()
         progress = tqdm(enumerate(loader), total=steps_per_epoch, desc=f"epoch {epoch + 1}")
         for _step, batch in progress:
             x_real = batch["data"].to(device)
@@ -202,7 +253,7 @@ def main() -> None:
                         x_gen,
                         class_id,
                         class_id_gen,
-                        dino=dino,
+                        dino=feature_extractor,
                         dino_weight=float(args.dino_weight),
                         pixel_weight=float(args.pixel_weight),
                         gamma=GAMMA,
@@ -258,10 +309,22 @@ def main() -> None:
                 break
 
         epoch_num = epoch + 1
-        if epoch_num % int(args.sample_every) == 0 or stop:
+        if int(args.sample_every) > 0 and (epoch_num % int(args.sample_every) == 0 or stop):
             sample_path = checkpoint_dir / "samples" / f"epoch_{epoch_num:04d}.png"
             samples = model.sample(eval_class_ids)
             save_sample_grid(samples, sample_path, image_size=IMAGE_SIZE)
+
+        if progress_every > 0 and epoch_num % progress_every == 0:
+            row_path = save_progress_row(
+                model,
+                epoch_num,
+                rows_dir=Path(args.progress_rows_dir),
+                manifest_path=Path(args.progress_manifest),
+                device=device,
+                candidates=int(args.progress_candidates),
+                seed=int(args.seed),
+            )
+            print(f"Progress row epoch {epoch_num}: {row_path}")
 
         if epoch_num % int(args.save_every) == 0 or stop:
             state = {
@@ -294,6 +357,24 @@ def main() -> None:
     }
     torch.save(final, checkpoint_dir / "final.pt")
     print(f"Wrote {checkpoint_dir / 'final.pt'}")
+
+    if progress_every > 0:
+        final_epoch = int(args.epochs)
+        if final_epoch % progress_every != 0:
+            save_progress_row(
+                model,
+                final_epoch,
+                rows_dir=Path(args.progress_rows_dir),
+                manifest_path=Path(args.progress_manifest),
+                device=device,
+                candidates=int(args.progress_candidates),
+                seed=int(args.seed),
+            )
+        manifest = stitch_progress_grid(
+            manifest_path=Path(args.progress_manifest),
+            output_image=Path(args.progress_output),
+        )
+        print(f"Wrote {manifest.output_image}")
 
 
 if __name__ == "__main__":

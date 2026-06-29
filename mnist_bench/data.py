@@ -24,14 +24,13 @@ def _pad_and_rgb(tensor: Tensor) -> Tensor:
     return padded.repeat(CHANNELS, 1, 1)
 
 
-def build_mnist_transform() -> transforms.Compose:
-    return transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize(_MNIST_MEAN, _MNIST_STD),
-            transforms.Lambda(_pad_and_rgb),
-        ]
-    )
+def build_mnist_transform(*, dcgan: bool = False) -> transforms.Compose:
+    """Build MNIST transform. DCGAN uses [0,1]→[-1,1]; Kuramoto uses MNIST mean/std scaling."""
+    steps: list[Any] = [transforms.ToTensor()]
+    if not dcgan:
+        steps.append(transforms.Normalize(_MNIST_MEAN, _MNIST_STD))
+    steps.append(transforms.Lambda(_pad_and_rgb))
+    return transforms.Compose(steps)
 
 
 def collate_mnist_batch(batch: list[tuple[Tensor, int]]) -> dict[str, Tensor]:
@@ -58,8 +57,9 @@ def build_mnist_dataloader(
     shuffle: bool = True,
     drop_last: bool = True,
     max_samples: int = 0,
+    dcgan: bool = False,
 ) -> DataLoader[dict[str, Tensor]]:
-    transform = build_mnist_transform()
+    transform = build_mnist_transform(dcgan=dcgan)
     dataset: Any
     if include_sample_id:
         dataset = _MNISTWithId(root=root, train=train, download=True, transform=transform)

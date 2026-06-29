@@ -10,9 +10,9 @@ from pathlib import Path
 from mnist_bench.digits import (
     MAC_FAST_TRAIN_KWARGS,
     MAC_LITE_TRAIN_KWARGS,
-    build_progress_grid,
     kuramoto_train_command,
-    list_snapshot_checkpoints,
+    progress_epoch_step,
+    stitch_progress_grid,
     train_kwargs_for_device,
     training_subprocess_env,
 )
@@ -62,6 +62,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--snapshot-dir", type=Path, default=DEFAULT_SNAPSHOT_DIR)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--rows-dir", type=Path, default=Path("digits/progress_rows"))
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=None,
+        help="Progress manifest path (default: parent of --rows-dir / progress_manifest.json).",
+    )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=None,
+        help="Save a progress row every N epochs (overrides --snapshots spacing).",
+    )
     parser.add_argument("--device", default="auto")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--candidates", type=int, default=16)
@@ -99,19 +111,30 @@ def main() -> None:
 
     kwargs["epochs"] = epochs
     kwargs["batch_size"] = batch_size
-    snapshot_every = max(1, epochs // snapshots)
+    if args.progress_every is not None:
+        progress_every = int(args.progress_every)
+    else:
+        progress_every = progress_epoch_step(epochs, num_rows=snapshots)
+    kwargs.setdefault("sample_every", 0)
+    kwargs["progress_every"] = progress_every
+    kwargs.setdefault("progress_candidates", int(args.candidates))
+    manifest_path = args.manifest if args.manifest is not None else args.rows_dir.parent / "progress_manifest.json"
+    kwargs["progress_rows_dir"] = str(args.rows_dir)
+    kwargs["progress_manifest"] = str(manifest_path)
+    kwargs["progress_output"] = str(args.output)
+    kwargs["device"] = str(device)
     checkpoint_dir = args.snapshot_dir.parent
 
     if not args.skip_train:
         steps = (int(kwargs.get("max_samples", 0)) or 60000) // batch_size
         print(
             f"[{mode}] Training on {device}: {epochs} epochs, ~{steps} steps/epoch, "
-            f"snapshot every {snapshot_every}…",
+            f"progress row every {progress_every}…",
         )
         if args.lite:
             print("  (preview quality — use --fast for digit-like results)")
         elif args.fast:
-            print("  (6000 samples, 256 oscillators, snapshot every", snapshot_every, "epochs)")
+            print("  (6000 samples, 256 oscillators, progress every", progress_every, "epochs)")
         elif device.type == "cuda":
             preset = "6GB" if int(kwargs.get("n_oscillators", 1024)) <= 512 else "cloud"
             print(
@@ -123,28 +146,26 @@ def main() -> None:
             print(f"  Resuming from {args.resume}")
         cmd = kuramoto_train_command(
             checkpoint_dir=checkpoint_dir,
-            snapshot_every=snapshot_every,
+            snapshot_every=0,
             train_kwargs=kwargs,
             resume=args.resume,
         )
         subprocess.run(cmd, check=True, env=training_subprocess_env())
+        print(f"Training finished; grid at {args.output}")
+        return
 
-    checkpoints = list_snapshot_checkpoints(args.snapshot_dir, limit=snapshots)
-    print(f"Building {len(checkpoints)}×10 grid from snapshots…")
-    manifest = build_progress_grid(
-        checkpoints=checkpoints,
+    manifest_path = args.manifest if args.manifest is not None else args.rows_dir.parent / "progress_manifest.json"
+    print("Stitching progress grid from manifest…")
+    manifest = stitch_progress_grid(
+        manifest_path=manifest_path,
         output_image=args.output,
-        device=str(args.device),
-        seed=int(args.seed),
-        candidates_per_digit=int(args.candidates),
         cell_scale=int(args.cell_scale),
-        rows_dir=args.rows_dir,
     )
     print(f"Wrote {args.output}")
     print(f"  Row grids: {args.rows_dir}/epoch_XXXX.png")
     print(f"  Manifest:  {args.output.with_suffix('.json')}")
     for row in manifest.rows:
-        print(f"  epoch {row['epoch']:>4}: {Path(str(row['checkpoint'])).name}")
+        print(f"  epoch {int(row['epoch']):>4}: {Path(str(row['image'])).name}")
 
 
 if __name__ == "__main__":

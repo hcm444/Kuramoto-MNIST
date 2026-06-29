@@ -1,59 +1,80 @@
 # Kuramoto-MNIST
 
-Train [Un-0](https://github.com/unconv-ai/Un-0) Kuramoto dynamics on MNIST and generate **ten grayscale digits** (0–9) plus a **10×10 training progress grid**.
+Train [Un-0](https://github.com/unconv-ai/Un-0) Kuramoto dynamics on MNIST and generate **ten grayscale digits** (0–9). Includes a **class-conditional DCGAN baseline** and a **fair comparison** on full MNIST.
 
-## Vast.ai (recommended for 1200 epochs)
+## Fair comparison (Kuramoto vs DCGAN)
 
-Rent a GPU, paste one on-start script, download results when done.
+**800 epochs each** on 60k MNIST — matched batch size, progress cadence, and best-of-32 selection.
+
+| | Kuramoto | DCGAN |
+|---|----------|-------|
+| Result @ 800 ep | All classes; thick, jagged digits | Clean MNIST-like digits |
+| Verdict | Learns structure; plateaus ~100 ep | **Stronger generator** on this benchmark |
+
+| Progress grid | Path |
+|---------------|------|
+| Kuramoto (80×10) | [`digits/kuramoto/progress_80x10.png`](digits/kuramoto/progress_80x10.png) |
+| DCGAN (80×10) | [`digits/dcgan/progress_80x10.png`](digits/dcgan/progress_80x10.png) |
+
+**Full write-up:** [`research/fair_comparison.md`](research/fair_comparison.md) · [`research/README.md`](research/README.md)
+
+```bash
+# Reproduce: 400 ep fresh + 400 ep resume → 800 total
+./scripts/run_fair_comparison_400.sh
+./scripts/resume_fair_comparison.sh
+```
+
+---
+
+## Quick start (local CUDA)
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+
+# Pretrain digit encoder (once)
+python scripts/pretrain_digit_encoder.py --epochs 5 --device cuda
+
+# Kuramoto progress grid (100 epochs)
+./cloud/train_progress.sh
+
+# Kuramoto quality preset (400 epochs, sharper loss mix)
+./scripts/train_quality_local.sh
+
+# DCGAN baseline (100 epochs)
+python make_dcgan_progress_grid.py --device cuda --epochs 100
+```
+
+| Preset | GPU | Epochs | ~time |
+|--------|-----|--------|-------|
+| `quality6gb` | 6 GB | 400 | ~4 hr |
+| `6gb` (auto) | 6 GB | 200 | ~2 hr |
+| `cloud` | ≥8 GB | 1200 | 2–5 days |
+| Fair comparison | 6 GB | 800×2 models | ~8 hr |
+
+---
+
+## Vast.ai (1200 epochs)
 
 **Guide:** **[cloud/vast/README.md](cloud/vast/README.md)**
-
-**On-start script** (Vast instance field):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hcm444/Kuramoto-MNIST/main/cloud/vast/onstart.sh | bash
 ```
 
-**Manual SSH workflow:**
-
-```bash
-git clone https://github.com/hcm444/Kuramoto-MNIST.git
-cd Kuramoto-MNIST
-chmod +x cloud/*.sh cloud/vast/*.sh
-./cloud/bootstrap.sh
-tmux new -s train
-./cloud/train_long.sh    # 1200 epochs → digits/progress_10x10.png
-```
-
-**Resume** from a laptop checkpoint on the instance:
+Resume from a laptop checkpoint:
 
 ```bash
 RESUME=checkpoints/kuramoto/final.pt EPOCHS=1200 ./cloud/train_long.sh
 ```
-
-**Download** (set `SSH_PORT` for Vast):
-
-```bash
-SSH_PORT=12345 ./cloud/fetch_results.sh root@IP /workspace/Kuramoto-MNIST
-```
-
-| Preset | GPU | Epochs | ~time |
-|--------|-----|--------|-------|
-| `cloud` | ≥8 GB (4090, A5000, T4) | 1200 | 2–5 days |
-| `6gb` (auto) | 6 GB laptop | 60 | ~9 hr |
-| `train_progress.sh` | ≥8 GB | 100 | ~1–2 hr |
 
 ---
 
 ## Mac (Apple Silicon)
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
 python make_progress_grid.py --device mps --epochs 40 --candidates 16
 ```
-
-Faster subset: `python make_progress_grid.py --fast --device mps`
 
 ---
 
@@ -61,34 +82,47 @@ Faster subset: `python make_progress_grid.py --fast --device mps`
 
 ```
 digits/
-  progress_10x10.png     # 10 training snapshots × 10 digits
-  progress_rows/         # one row per snapshot
+  kuramoto/              # fair-comparison Kuramoto grids + rows
+  dcgan/                 # fair-comparison DCGAN grids + rows
+  progress_10x10.png     # legacy Kuramoto grid
   0.png … 9.png          # final digits (make_digits.py)
-checkpoints/kuramoto/
-  final.pt               # trained model
-  snapshots/             # epoch checkpoints
-  samples/               # live sample grids during training
+checkpoints/kuramoto/    # trained model (gitignored)
+checkpoints/dcgan/       # DCGAN checkpoint (gitignored)
+checkpoints/mnist_digit_encoder.pt
+research/                # experiment write-ups
 ```
 
 ---
 
 ## How it works
 
-1. **Train** — Un-0 drift loss + DINO on padded 32×32 RGB MNIST  
-2. **Generate** — `model.sample(class_id)` per digit; progress grid keeps best candidate per class  
+| | **Kuramoto (Un-0)** | **DCGAN** |
+|---|---|---|
+| Objective | Drift loss (digit encoder + pixel) | Adversarial (G vs D) |
+| Entry point | `train_kuramoto.py` | `train_dcgan.py` |
+| Progress grids | `make_progress_grid.py` | `make_dcgan_progress_grid.py` |
 
-**MNIST-tuned loss** (all CUDA presets): `dino=0.2`, `pixel=0.06`, `collapse=0.01` — higher pixel weight than Un-0 CIFAR defaults.
+Kuramoto uses a frozen **MNIST digit CNN** as the feature backbone (`pixel=0.06`, `dino=0.35`, `collapse=0.01` on the `6gb` preset).
 
-Training details and DCGAN comparison: **[FINDINGS.md](FINDINGS.md)**
+Training notes: **[FINDINGS.md](FINDINGS.md)** · **[research/](research/)**
 
 ---
 
-## Local options
+## Commands
 
 ```bash
-python make_progress_grid.py --skip-train --device cuda --candidates 16
-python make_digits.py --skip-train --device cuda
-python train_dcgan.py --device cuda --epochs 200   # GAN baseline
+# Re-stitch progress grid from manifest
+python make_progress_grid.py --skip-train --device cuda \
+  --manifest digits/kuramoto/progress_manifest.json \
+  --output digits/kuramoto/progress_80x10.png
+
+# Export final digits 0–9
+python make_digits.py --skip-train --device cuda --candidates 32
+
+# FID + throughput (requires checkpoints)
+python eval/compare.py \
+  --kuramoto checkpoints/kuramoto/final.pt \
+  --dcgan checkpoints/dcgan/final.pt
 ```
 
 ---

@@ -11,3 +11,15 @@ wandb/
 train_progress.log
 train_progress_*.log
 **/train.log
+
+# Generated training outputs (produced on cloud GPU, fetched via cloud/fetch_results.sh)
+digits/*.png
+digits/*.json
+digits/progress_rows/
+
+# Local training logs
+*.log
+comparison_*.log
+fair_comparison_*.log
+train_*.log
+pretrain_*.log

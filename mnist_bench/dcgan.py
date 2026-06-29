@@ -49,7 +49,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    """Class-conditional discriminator on flat images."""
+    """Class-conditional discriminator on flat images (no BatchNorm — DCGAN convention)."""
 
     def __init__(self, *, num_classes: int = NUM_CLASSES) -> None:
         super().__init__()
@@ -59,13 +59,10 @@ class Discriminator(nn.Module):
             nn.Conv2d(4, 64, 4, 2, 1),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 128, 4, 2, 1),
-            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 256, 4, 2, 1),
-            nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(256, 512, 4, 2, 1),
-            nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.fc = nn.Linear(512 * 2 * 2, 1)
@@ -79,6 +76,46 @@ class Discriminator(nn.Module):
         return self.fc(x)
 
 
+def dcgan_discriminator_loss(
+    discriminator: Discriminator,
+    generator: Generator,
+    real: Tensor,
+    class_id: Tensor,
+    *,
+    latent_dim: int,
+    device: torch.device,
+    label_smooth: float = 0.9,
+) -> tuple[Tensor, Tensor]:
+    """Return (d_loss, fake_detached) for one discriminator step."""
+    batch_size = real.shape[0]
+    noise = torch.randn(batch_size, int(latent_dim), device=device)
+    with torch.no_grad():
+        fake = generator(noise, class_id)
+    real_logits = discriminator(real, class_id)
+    fake_logits = discriminator(fake, class_id)
+    real_target = torch.full_like(real_logits, float(label_smooth))
+    fake_target = torch.zeros_like(fake_logits)
+    real_loss = F.binary_cross_entropy_with_logits(real_logits, real_target)
+    fake_loss = F.binary_cross_entropy_with_logits(fake_logits, fake_target)
+    return real_loss + fake_loss, fake
+
+
+def dcgan_generator_loss(
+    discriminator: Discriminator,
+    generator: Generator,
+    class_id: Tensor,
+    *,
+    latent_dim: int,
+    device: torch.device,
+) -> Tensor:
+    """Non-saturating generator loss (stable when D is strong)."""
+    batch_size = class_id.shape[0]
+    noise = torch.randn(batch_size, int(latent_dim), device=device)
+    fake = generator(noise, class_id)
+    gen_logits = discriminator(fake, class_id)
+    return F.softplus(-gen_logits).mean()
+
+
 def dcgan_losses(
     discriminator: Discriminator,
     generator: Generator,
@@ -87,19 +124,25 @@ def dcgan_losses(
     *,
     latent_dim: int,
     device: torch.device,
+    label_smooth: float = 0.9,
 ) -> tuple[Tensor, Tensor, Tensor]:
-    """Return (discriminator_loss, generator_loss, fake_flat)."""
-    batch_size = real.shape[0]
-    real_logits = discriminator(real, class_id)
-    noise = torch.randn(batch_size, latent_dim, device=device)
-    fake = generator(noise, class_id)
-    fake_logits = discriminator(fake.detach(), class_id)
-    real_loss = F.binary_cross_entropy_with_logits(real_logits, torch.ones_like(real_logits))
-    fake_loss = F.binary_cross_entropy_with_logits(fake_logits, torch.zeros_like(fake_logits))
-    d_loss = real_loss + fake_loss
-
-    gen_logits = discriminator(fake, class_id)
-    g_loss = F.binary_cross_entropy_with_logits(gen_logits, torch.ones_like(gen_logits))
+    """Return (discriminator_loss, generator_loss, fake_flat) for one combined step."""
+    d_loss, fake = dcgan_discriminator_loss(
+        discriminator,
+        generator,
+        real,
+        class_id,
+        latent_dim=latent_dim,
+        device=device,
+        label_smooth=label_smooth,
+    )
+    g_loss = dcgan_generator_loss(
+        discriminator,
+        generator,
+        class_id,
+        latent_dim=latent_dim,
+        device=device,
+    )
     return d_loss, g_loss, fake
 
 

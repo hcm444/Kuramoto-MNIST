@@ -1,0 +1,327 @@
+{
+  "rows": [
+    {
+      "epoch": 10,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0010.png"
+    },
+    {
+      "epoch": 20,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0020.png"
+    },
+    {
+      "epoch": 30,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0030.png"
+    },
+    {
+      "epoch": 40,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0040.png"
+    },
+    {
+      "epoch": 50,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0050.png"
+    },
+    {
+      "epoch": 60,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0060.png"
+    },
+    {
+      "epoch": 70,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0070.png"
+    },
+    {
+      "epoch": 80,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0080.png"
+    },
+    {
+      "epoch": 90,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0090.png"
+    },
+    {
+      "epoch": 100,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0100.png"
+    },
+    {
+      "epoch": 110,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0110.png"
+    },
+    {
+      "epoch": 120,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0120.png"
+    },
+    {
+      "epoch": 130,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0130.png"
+    },
+    {
+      "epoch": 140,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0140.png"
+    },
+    {
+      "epoch": 150,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0150.png"
+    },
+    {
+      "epoch": 160,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0160.png"
+    },
+    {
+      "epoch": 170,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0170.png"
+    },
+    {
+      "epoch": 180,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0180.png"
+    },
+    {
+      "epoch": 190,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0190.png"
+    },
+    {
+      "epoch": 200,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0200.png"
+    },
+    {
+      "epoch": 210,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0210.png"
+    },
+    {
+      "epoch": 220,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0220.png"
+    },
+    {
+      "epoch": 230,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0230.png"
+    },
+    {
+      "epoch": 240,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0240.png"
+    },
+    {
+      "epoch": 250,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0250.png"
+    },
+    {
+      "epoch": 260,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0260.png"
+    },
+    {
+      "epoch": 270,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0270.png"
+    },
+    {
+      "epoch": 280,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0280.png"
+    },
+    {
+      "epoch": 290,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0290.png"
+    },
+    {
+      "epoch": 300,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0300.png"
+    },
+    {
+      "epoch": 310,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0310.png"
+    },
+    {
+      "epoch": 320,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0320.png"
+    },
+    {
+      "epoch": 330,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0330.png"
+    },
+    {
+      "epoch": 340,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0340.png"
+    },
+    {
+      "epoch": 350,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0350.png"
+    },
+    {
+      "epoch": 360,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0360.png"
+    },
+    {
+      "epoch": 370,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0370.png"
+    },
+    {
+      "epoch": 380,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0380.png"
+    },
+    {
+      "epoch": 390,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0390.png"
+    },
+    {
+      "epoch": 400,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0400.png"
+    },
+    {
+      "epoch": 410,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0410.png"
+    },
+    {
+      "epoch": 420,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0420.png"
+    },
+    {
+      "epoch": 430,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0430.png"
+    },
+    {
+      "epoch": 440,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0440.png"
+    },
+    {
+      "epoch": 450,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0450.png"
+    },
+    {
+      "epoch": 460,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0460.png"
+    },
+    {
+      "epoch": 470,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0470.png"
+    },
+    {
+      "epoch": 480,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0480.png"
+    },
+    {
+      "epoch": 490,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0490.png"
+    },
+    {
+      "epoch": 500,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0500.png"
+    },
+    {
+      "epoch": 510,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0510.png"
+    },
+    {
+      "epoch": 520,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0520.png"
+    },
+    {
+      "epoch": 530,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0530.png"
+    },
+    {
+      "epoch": 540,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0540.png"
+    },
+    {
+      "epoch": 550,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0550.png"
+    },
+    {
+      "epoch": 560,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0560.png"
+    },
+    {
+      "epoch": 570,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0570.png"
+    },
+    {
+      "epoch": 580,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0580.png"
+    },
+    {
+      "epoch": 590,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0590.png"
+    },
+    {
+      "epoch": 600,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0600.png"
+    },
+    {
+      "epoch": 610,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0610.png"
+    },
+    {
+      "epoch": 620,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0620.png"
+    },
+    {
+      "epoch": 630,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0630.png"
+    },
+    {
+      "epoch": 640,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0640.png"
+    },
+    {
+      "epoch": 650,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0650.png"
+    },
+    {
+      "epoch": 660,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0660.png"
+    },
+    {
+      "epoch": 670,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0670.png"
+    },
+    {
+      "epoch": 680,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0680.png"
+    },
+    {
+      "epoch": 690,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0690.png"
+    },
+    {
+      "epoch": 700,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0700.png"
+    },
+    {
+      "epoch": 710,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0710.png"
+    },
+    {
+      "epoch": 720,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0720.png"
+    },
+    {
+      "epoch": 730,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0730.png"
+    },
+    {
+      "epoch": 740,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0740.png"
+    },
+    {
+      "epoch": 750,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0750.png"
+    },
+    {
+      "epoch": 760,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0760.png"
+    },
+    {
+      "epoch": 770,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0770.png"
+    },
+    {
+      "epoch": 780,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0780.png"
+    },
+    {
+      "epoch": 790,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0790.png"
+    },
+    {
+      "epoch": 800,
+      "image": "/home/bot/Kuramoto-MNIST/digits/dcgan/progress_rows/epoch_0800.png"
+    }
+  ],
+  "candidates_per_digit": 32,
+  "cell_scale": 4,
+  "seed": 42
+}
